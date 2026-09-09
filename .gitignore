@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+src/raw-data.json
+src/initial-data.json
+*.xlsx
+~$*
