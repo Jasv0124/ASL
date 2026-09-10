@@ -1,6 +1,7 @@
 import './style.css';
 import {summarize,status,groupStatus,type LoadRecord} from './data';
 import {saveExcel,loadCloud} from './cloud';
+import {initIsotanques} from './isotanques';
 
 let records:LoadRecord[]=[], source='Esperando un archivo Excel', page=1, centerPage=1;
 let pending:{file:File;records:LoadRecord[]}|null=null;
@@ -10,8 +11,16 @@ const pct=(s:number,l:number)=>s ? `${(l/s*100).toLocaleString('es-CO',{maximumF
 const date=(d:string)=>d.split('-').reverse().join('/');
 const badge=(s:string)=>`<span class="badge ${s==='Cumplió'?'good':s==='No cumplió'?'bad':'warn'}">${s}</span>`;
 document.querySelector<HTMLDivElement>('#app')!.innerHTML=`
-<header><a class="brand" href="/" aria-label="ASL inicio"><span class="brand-mark">A</span>ASL<span class="brand-divider"></span><span class="brand-sub">Operación logística</span></a><div class="header-actions"><button class="ghost" id="capture">Vista captura</button></div></header>
-<main><div class="eyebrow">OPERACIONES / DISTRIBUCIÓN</div><section class="intro"><div><h1>Control de cargue<span>.</span></h1><p>La operación de tus centros, antes de las 6:00 a. m.</p></div><button class="primary" id="upload">＋ Importar Excel</button><input type="file" accept=".xlsx" id="file" hidden></section>
+<header class="portal-header"><a class="brand" href="#inicio" aria-label="ASL inicio"><span class="brand-mark">A</span><span class="portal-brand-copy"><strong>ASL</strong><small>Operación logística</small></span></a><div class="header-actions"><button class="ghost" id="capture" hidden>Vista captura</button></div></header>
+<main><section id="module-inicio" aria-labelledby="title-inicio">
+<div class="portal-hero"><svg class="portal-routes" aria-hidden="true" viewBox="0 0 360 180" fill="none"><path d="M0 140H90Q120 140 120 110V70Q120 40 150 40H360M35 180V120Q35 95 60 95H230Q260 95 260 65V0" stroke="currentColor" stroke-width="2" stroke-dasharray="5 5"/><circle cx="120" cy="95" r="9" fill="currentColor"/></svg><div><p class="portal-kicker">Panel operativo</p><h1 id="title-inicio">Gestión central para ASL</h1><p class="portal-description">Accede a los módulos de tu operación logística.</p></div><div class="portal-count"><span>ESPACIO OPERATIVO</span><strong>2</strong><p>módulos disponibles</p></div></div>
+<div class="portal-heading"><div><p class="portal-kicker">Tu espacio de trabajo</p><h2>Módulos disponibles</h2></div><span>2 módulos</span></div>
+<nav class="portal-modules" aria-label="Módulos disponibles">
+<a class="module-card" href="#cargue"><span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 17V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12h2m4 0h8m4 0h2v-5l-4-5h-4"/><circle cx="6" cy="17" r="2"/><circle cx="18" cy="17" r="2"/></svg></span><span class="module-copy"><strong>Cargue</strong><small>Programación, cargue y cumplimiento</small></span><span class="module-arrow" aria-hidden="true">→</span></a>
+<a class="module-card module-card-dark" href="#isotanques"><span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="1"/><rect x="5" y="7" width="14" height="10" rx="5"/><path d="M2 8h3m14 0h3M2 16h3m14 0h3M10 4v3m4-3v3"/></svg></span><span class="module-copy"><strong>Isotanques</strong></span><span class="module-arrow" aria-hidden="true">→</span></a>
+</nav></section>
+<a href="#inicio" class="back-modules" id="back-modules" hidden>← Volver a módulos</a>
+<div id="module-cargue" aria-labelledby="title-cargue"><div class="eyebrow">OPERACIONES / CARGUE</div><section class="intro"><div><h1 id="title-cargue">Cargue<span>.</span></h1><p>La operación de tus centros, antes de las 6:00 a. m.</p></div><button class="primary" id="upload">＋ Importar Excel</button><input type="file" accept=".xlsx" id="file" hidden></section>
 <div class="source-line"><span class="live-dot"></span><span id="source"></span><span class="separator">/</span><span id="range"></span></div>
 <section class="filters" aria-label="Filtros"><label>Centro de distribución<select id="center"><option value="">Todos los centros</option></select></label><label>Regional<select id="region"><option value="">Todas las regionales</option></select></label><label>Desde<input type="date" id="from"></label><label>Hasta<input type="date" id="to"></label><button class="ghost" id="reset">Restablecer ↺</button></section>
 <div id="notice" role="status" aria-live="polite"></div><section id="metrics" class="metrics"></section>
@@ -19,7 +28,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML=`
 <section class="panel regional-panel"><div class="panel-heading"><div><h2>02 · Regionales</h2><p>Comparativo de desempeño</p></div><span class="pill" id="region-count"></span></div><div id="regional-hero" class="regional-hero"></div><div id="regional" class="regional-cards"></div></section>
 <section class="trends-panel"><article class="panel daily-panel"><div class="panel-heading"><div><h2>Tendencia de cumplimiento diario</h2><p>Porcentaje consolidado por fecha</p></div><span class="pill">Últimos 14 días</span></div><div class="chart-body"><canvas id="daily-chart" role="img" aria-label="Gráfico de tendencia diaria de cumplimiento"></canvas></div></article><article class="panel monthly-panel"><div class="panel-heading"><div><h2>Tendencia mensual</h2><p>Evolución por mes</p></div></div><div id="monthly-chart" class="monthly-chart"></div></article></section>
 <section class="panel detail-panel"><div class="panel-heading"><div><h2>03 · Últimos registros</h2><p>Detalle operativo del período</p></div><span class="pill" id="record-count"></span></div><div class="table-scroll"><table><thead><tr><th>Fecha</th><th>Centro</th><th class="numeric">Prog.</th><th class="numeric">Carg.</th><th>Estado</th><th class="numeric">%</th></tr></thead><tbody id="detail"></tbody></table></div><div class="pagination"><span id="page-label"></span><div><button id="prev" class="ghost" aria-label="Página anterior">←</button><button id="next" class="ghost" aria-label="Página siguiente">→</button></div></div></section></div>
-<footer><strong>ASL</strong><span>Control de cargue · Primera versión</span><span>Fuente: Registro de cargue · Fecha basada en «Hora de inicio»</span></footer></main>
+<footer><strong>ASL</strong><span>Control de cargue · Primera versión</span><span>Fuente: Registro de cargue · Fecha basada en «Hora de inicio»</span></footer></div>
+<section id="module-isotanques" aria-labelledby="title-isotanques" hidden><div id="isotanques-app"></div></section></main>
 <dialog id="import-dialog"><div class="dialog-title"><h2>Importar Excel</h2><button class="close" data-close="import-dialog" aria-label="Cerrar">×</button></div><p id="preview-text"></p><p class="hint">Puedes revisar el archivo en pantalla o guardarlo directamente. El guardado se realiza automáticamente en segundo plano.</p><div id="import-message" role="status"></div><div class="dialog-actions"><button class="ghost" id="preview">Ver sin guardar</button><button class="primary" id="save">Guardar archivo</button></div></dialog>`;
 const el=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 const value=(id:string)=>el<HTMLInputElement>(id).value;
@@ -78,4 +88,20 @@ function drawDaily(rows:LoadRecord[]){
  data.forEach((d,i)=>{const px=x(i),py=y(values[i]);ctx.fillStyle=values[i]>=100?'#0bab78':values[i]>=95?'#ffb21c':'#ef6756';ctx.beginPath();ctx.arc(px,py,3.5,0,Math.PI*2);ctx.fill();ctx.fillStyle='#21485c';ctx.font='8px DM Sans';ctx.textAlign='center';ctx.fillText(`${values[i].toLocaleString('es-CO',{maximumFractionDigits:0})}%`,px,Math.max(8,py-7));if(i===0||i===data.length-1||data.length<=8||i%2===0){ctx.fillStyle='#6e8794';ctx.fillText(d.label.slice(8),px,box.height-7);}});
 }
 window.addEventListener('resize',()=>drawDaily(trendRows));
+function showModule(){
+ const active=location.hash==='#isotanques'?'isotanques':location.hash==='#cargue'?'cargue':'inicio';
+ for(const name of ['inicio','cargue','isotanques']){
+  el(`module-${name}`).hidden=name!==active;
+ }
+ el('back-modules').hidden=active==='inicio';
+ el('capture').hidden=active!=='cargue';
+ document.body.classList.remove('capture-view');
+ el('capture').textContent='Vista captura';
+ document.title=`ASL · ${active==='inicio'?'Módulos':active==='cargue'?'Cargue':'Isotanques'}`;
+ window.scrollTo(0,0);
+ if(active==='cargue')requestAnimationFrame(()=>drawDaily(trendRows));
+}
+window.addEventListener('hashchange',showModule);
+showModule();
+initIsotanques();
 options();render();
