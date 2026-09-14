@@ -59,7 +59,7 @@ function render(){
 function replace(next:LoadRecord[],name:string){records=next;source=name;page=1;centerPage=1;options();el<HTMLInputElement>('from').value='';el<HTMLInputElement>('to').value='';render();}
 for(const id of ['center','region','from','to'])el(id).addEventListener('change',()=>{page=1;centerPage=1;render();});
 el('reset').onclick=()=>{for(const id of ['center','region','from','to'])el<HTMLInputElement>(id).value='';page=1;centerPage=1;render();};
-el('capture').onclick=()=>{document.body.classList.toggle('capture-view');el('capture').textContent=document.body.classList.contains('capture-view')?'Salir de captura':'Vista captura';};
+el('capture').onclick=()=>{const tv=location.hash==='#isotanques';document.body.classList.toggle(tv?'tv-view':'capture-view');el('capture').textContent=document.body.classList.contains(tv?'tv-view':'capture-view')?'Salir de TV':'Modo TV';};
 el('prev').onclick=()=>{page--;render();};el('next').onclick=()=>{page++;render();};
 el('center-prev').onclick=()=>{centerPage--;render();};el('center-next').onclick=()=>{centerPage++;render();};
 document.querySelectorAll<HTMLButtonElement>('[data-close]').forEach(b=>b.onclick=()=>el<HTMLDialogElement>(b.dataset.close!).close());
@@ -94,9 +94,10 @@ function showModule(){
   el(`module-${name}`).hidden=name!==active;
  }
  el('back-modules').hidden=active==='inicio';
- el('capture').hidden=active!=='cargue';
+ el('capture').hidden=active==='inicio';
+ document.body.classList.remove('tv-view');
  document.body.classList.remove('capture-view');
- el('capture').textContent='Vista captura';
+ el('capture').textContent=active==='isotanques'?'Modo TV':'Vista captura';
  document.title=`ASL · ${active==='inicio'?'Módulos':active==='cargue'?'Cargue':'Isotanques'}`;
  window.scrollTo(0,0);
  if(active==='cargue')requestAnimationFrame(()=>drawDaily(trendRows));
