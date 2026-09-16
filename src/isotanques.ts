@@ -71,14 +71,15 @@ function palletsDashboard(rows:IsoRecord[]){
 }
 function dailyTable(rows:IsoRecord[],metric:keyof IsoRecord){
  const history=records.filter(row=>(!value('iso-center')||row.center===value('iso-center'))&&(!value('iso-management')||row.management===value('iso-management'))&&(!value('iso-week')||row.week===Number(value('iso-week')))&&(!value('iso-month')||row.month===value('iso-month')));
- const dates=[...new Set(history.map(row=>row.date))].sort().slice(-5);
+ const visibleDays=document.body.classList.contains('tv-view')?4:5;
+ const dates=[...new Set(history.map(row=>row.date))].sort().slice(-visibleDays);
  return `<div class="iso-table-wrap"><table><thead><tr><th>CD</th>${dates.map(d=>`<th>${Number(d.slice(8))}</th>`).join('')}<th>Total</th></tr></thead><tbody>${[...rows].sort((a,b)=>a.center.localeCompare(b.center,'es')).map(r=>`<tr><td>${safe(r.center)}</td>${dates.map(d=>`<td>${history.filter(x=>x.center===r.center&&x.date===d).sort((a,b)=>Number(b.id)-Number(a.id))[0]?.[metric]??'—'}</td>`).join('')}<td><strong>${nf.format(Number(r[metric]))}</strong></td></tr>`).join('')}</tbody></table></div>`;
 }
 function tanksDashboard(rows:IsoRecord[]){
  const hlCenters=by(rows,'center','hl'),management=by(rows,'management','hl'),damaged=by(rows,'center','damaged');
  const inventory=`<div class="iso-table-wrap"><table><thead><tr><th>CD</th><th>Llenos</th><th>En proceso</th><th>Vacíos</th><th>Averiados</th><th>Novedad</th></tr></thead><tbody>${[...rows].sort((a,b)=>b.damaged-a.damaged||a.center.localeCompare(b.center,'es')).map(r=>`<tr><td>${safe(r.center)}</td><td>${nf.format(r.full)}</td><td>${nf.format(r.process)}</td><td>${nf.format(r.empty)}</td><td><strong>${nf.format(r.damaged)}</strong></td><td title="${safe(r.note)}">${safe(r.note||'Sin novedad')}</td></tr>`).join('')}</tbody></table></div>`;
  const damagedChart=`<div class="iso-columns">${damaged.map(r=>`<div><strong>${nf.format(r.value)}</strong><i style="height:${Math.max(2,r.value/Math.max(...damaged.map(x=>x.value),1)*100)}%"></i><span>${safe(r.label)}</span></div>`).join('')}</div>`;
- return `<div class="iso-grid">${panel('Total HL por CD',horizontal(hlCenters),'wide')}${panel('Resumen diario · HL',dailyTable(rows,'hl'),'wide')}${panel('Total HL por gerencia',funnel(management),'wide')}${panel('Inventario de isotanques',inventory,'span2')}${panel('Isotanques averiados por CD',damagedChart,'wide')}</div>`;
+ return `<div class="iso-grid">${panel('Total HL por CD',horizontal(hlCenters),'wide')}${panel('Resumen diario · HL',dailyTable(rows,'hl'),'wide iso-no-scroll iso-daily-panel')}${panel('Inventario de isotanques',inventory,'wide iso-no-scroll iso-inventory-panel')}${panel('Total HL por gerencia',funnel(management),'span2')}${panel('Isotanques averiados por CD',damagedChart,'wide')}</div>`;
 }
 function render(){
  const rows=filtered();
